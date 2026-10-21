@@ -1,0 +1,58 @@
+groups:
+  - name: medanon
+    rules:
+      - alert: MedanonDown
+        expr: up{job="medanon"} == 0
+        for: 1m
+        labels:
+          severity: critical
+        annotations:
+          summary: "medanon is not answering Prometheus scrapes"
+          runbook: "docs/runbooks/medanon-down.md"
+
+      - alert: MedanonHighErrorRate
+        expr: |
+          sum(rate(medanon_http_requests_total{status=~"5..",route!="/metrics"}[5m]))
+            /
+          sum(rate(medanon_http_requests_total{route!="/metrics"}[5m]))
+            > 0.05
+        for: 2m
+        labels:
+          severity: warning
+        annotations:
+          summary: "More than 5% of medanon requests are failing with 5xx"
+          runbook: "docs/runbooks/medanon-high-error-rate.md"
+
+      - alert: MedanonSlowRequests
+        expr: |
+          histogram_quantile(0.95,
+            sum by (le) (rate(medanon_http_request_duration_seconds_bucket{route!="/metrics"}[5m]))
+          ) > 1
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "medanon p95 latency above 1 second"
+          runbook: "docs/runbooks/medanon-high-error-rate.md"
+
+  - name: host
+    rules:
+      - alert: HostDiskSpaceLow
+        expr: |
+          node_filesystem_avail_bytes{mountpoint="/",fstype!~"tmpfs|overlay"}
+            /
+          node_filesystem_size_bytes{mountpoint="/",fstype!~"tmpfs|overlay"}
+            < 0.15
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Root filesystem below 15% free on {{ $labels.instance }}"
+
+      - alert: HostSystemdUnitFailed
+        expr: node_systemd_unit_state{state="failed"} == 1
+        for: 2m
+        labels:
+          severity: warning
+        annotations:
+          summary: "systemd unit {{ $labels.name }} has failed"

@@ -1,0 +1,29 @@
+rule_files:
+  - medanon-alerts.yml
+evaluation_interval: 15s
+tests:
+  - interval: 15s
+    input_series:
+      - series: 'up{job="medanon",instance="127.0.0.1:8080"}'
+        values: '1 1 0 0 0 0 0 0 0'
+      - series: 'medanon_http_requests_total{route="/v1/deidentify",status="200",method="POST"}'
+        values: '0+10x40'
+      - series: 'medanon_http_requests_total{route="/v1/deidentify",status="500",method="POST"}'
+        values: '0+5x40'
+      - series: 'medanon_http_requests_total{route="/metrics",status="200",method="GET"}'
+        values: '0+1000x40'
+    alert_rule_test:
+      - eval_time: 2m
+        alertname: MedanonDown
+        exp_alerts:
+          - exp_labels: {severity: critical, job: medanon, instance: "127.0.0.1:8080"}
+            exp_annotations:
+              summary: "medanon is not answering Prometheus scrapes"
+              runbook: "docs/runbooks/medanon-down.md"
+      - eval_time: 9m
+        alertname: MedanonHighErrorRate
+        exp_alerts:
+          - exp_labels: {severity: warning}
+            exp_annotations:
+              summary: "More than 5% of medanon requests are failing with 5xx"
+              runbook: "docs/runbooks/medanon-high-error-rate.md"

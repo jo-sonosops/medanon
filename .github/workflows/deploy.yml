@@ -1,0 +1,56 @@
+# Manual deploy to the NixOS host through the self-hosted runner.
+# Running it by hand is the approval gate: CI builds automatically,
+# a person decides when an image goes live. On a paid plan this would be
+# an environment with required reviewers instead.
+name: deploy
+
+on:
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Image tag to deploy, for example sha-1a2b3c4"
+        required: true
+        type: string
+
+permissions:
+  contents: read
+  packages: read
+
+concurrency:
+  group: deploy-nixos
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: [self-hosted, nixos]
+    timeout-minutes: 10
+    env:
+      # Keep registry credentials in the job's temp dir, wiped after the run.
+      DOCKER_CONFIG: ${{ runner.temp }}/docker
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Validate tag
+        env:
+          TAG: ${{ inputs.tag }}
+        run: |
+          if [[ ! "$TAG" =~ ^(sha-[0-9a-f]{7,40}|main)$ ]]; then
+            echo "Refusing tag '$TAG': expected sha-<hex> or main"
+            exit 1
+          fi
+
+      - name: Log in to GHCR
+        uses: docker/login-action@dbcb813823bdd20940b903addbd779551569679f # v4.6.0
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Deploy with health check and rollback
+        env:
+          TAG: ${{ inputs.tag }}
+          REPO: ${{ github.repository }}
+        run: bash deploy/deploy.sh "ghcr.io/${REPO,,}:${TAG}"
