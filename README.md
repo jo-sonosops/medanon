@@ -13,6 +13,27 @@ Medical imaging AI work starts with de-identified data. Before a model or a data
 scientist touches a scan, names, IDs, dates, institutions and vendor private tags
 have to go. medanon is that step as a service.
 
+## Status
+
+| Part | State |
+|---|---|
+| API and de-identification | Working. 15 tests, including one that fails if patient data reaches the logs. Output checked in a DICOM viewer |
+| CI: lint, tests, alert-rule tests, image build, Trivy scan, push to GHCR | Running and green on `main` |
+| Container image | Built and scanned in CI, run locally with Podman |
+| Deploy to NixOS (self-hosted runner, `deploy.sh` with rollback) | Written, not run yet |
+| Monitoring (Prometheus, Alertmanager, Grafana via the NixOS module) | Alert rules unit-tested in CI. Module written, not applied yet |
+| Dashboard as code, failure drills | Planned |
+
+## Problems found and fixed
+
+1. **Deploy workflow rejected by GitHub.** `runner.temp` is not available in a
+   job-level `env` block, so the workflow file failed validation before any job ran.
+   Fix: set `DOCKER_CONFIG` from `$RUNNER_TEMP` in the first step.
+2. **Trivy blocked the image** on HIGH findings in msgpack, setuptools and urllib3,
+   none of which the app uses. Searching inside the container showed they were
+   vendored inside pip from the base image. Fix: remove pip and ensurepip from the
+   runtime stage. The app never installs packages at runtime.
+
 ## API
 
 | Method | Path | What it does |
