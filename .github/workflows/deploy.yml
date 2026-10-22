@@ -24,13 +24,13 @@ jobs:
   deploy:
     runs-on: [self-hosted, nixos]
     timeout-minutes: 10
-    env:
-      # Keep registry credentials in the job's temp dir, wiped after the run.
-      DOCKER_CONFIG: ${{ runner.temp }}/docker
     defaults:
       run:
         shell: bash
     steps:
+      - name: Keep registry login in the job temp dir
+        run: echo "DOCKER_CONFIG=$RUNNER_TEMP/docker" >> "$GITHUB_ENV"
+
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
       - name: Validate tag
