@@ -94,3 +94,7 @@ nixos/               NixOS module for runner + monitoring, alert rules
 docs/runbooks/       what to do when an alert fires
 scripts/             sample generator, traffic generator
 ```
+
+## License
+
+MIT, see [LICENSE](LICENSE).
